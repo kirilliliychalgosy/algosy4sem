@@ -2,7 +2,10 @@
 #include <iostream>
 #include <vector>
 
-const char kSeparator = '#';
+namespace consts
+{
+    const char kSeparator = '#';
+}
 
 std::vector<size_t> KmpCalculatePrefixes(std::string &str) {
     size_t str_size = str.size();
@@ -22,7 +25,7 @@ std::vector<size_t> KmpCalculatePrefixes(std::string &str) {
 std::vector<size_t> Kmp(std::string &text, std::string &pattern) {
     size_t text_size = text.size();
     size_t pattern_size = pattern.size();
-    std::string kmp_string = pattern + kSeparator + text;
+    std::string kmp_string = pattern + consts::kSeparator + text;
 
     std::vector<size_t> beginnings{};
     std::vector<size_t> prefixes = KmpCalculatePrefixes(kmp_string);

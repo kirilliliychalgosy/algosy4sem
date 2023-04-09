@@ -2,7 +2,10 @@
 #include <iostream>
 #include <vector>
 
-const char kSeparator = '#';
+namespace consts
+{
+    const char kSeparator = '#';
+}
 
 std::vector<size_t> CalculatePrefixes(std::string &str) {
     size_t str_size = str.size();
@@ -57,7 +60,7 @@ int main() {
     std::string donkey_word;
     std::cin >> fiona_word >> donkey_word;
 
-    std::string concatenated = fiona_word + kSeparator + donkey_word;
+    std::string concatenated = fiona_word + consts::kSeparator + donkey_word;
     size_t fiona_word_size = fiona_word.size();
     size_t donkey_word_size = donkey_word.size();
     std::vector<size_t> prefixes = CalculatePrefixes(concatenated);
