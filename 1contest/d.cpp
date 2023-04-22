@@ -41,6 +41,11 @@ std::vector<size_t> CalculatePrefixes(const std::string &str) {
     return prefixes;
 }
 
+
+/// \brief Finds how word can be separated into prefixes of text
+/// \param prefixes - reference to part(!) of prefix function of string text#word, where # is a separator
+/// \return If separation is possible, std::vector<size_t> with indexes of prefixes of text to which word is separated;
+///         otherwise, std::nullopt is returned
 std::optional<std::vector<size_t>> FindSeparationOfWordIntoTextPrefixes(const std::vector<size_t> &prefixes) {
     std::vector<size_t> prefixes_beginnings;
     if (*prefixes.cbegin() == 0) {
@@ -67,6 +72,9 @@ std::optional<std::vector<size_t>> FindSeparationOfWordIntoTextPrefixes(const st
     return prefixes_beginnings;
 }
 
+/// \brief Prints prefixes fo text to which word is separated separately
+/// \param word - word which is separated
+/// \param prefixes_beginnings - vector which contains indexes of prefixes of text to which word is separated
 void PrintSeparationOfWordIntoTextPrefixes(const std::string &word, const std::vector<size_t> &prefixes_beginnings) {
     size_t prefixes_beginnings_size = prefixes_beginnings.size();
     if (prefixes_beginnings_size == 1) {
