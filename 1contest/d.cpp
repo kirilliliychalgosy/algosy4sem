@@ -115,8 +115,6 @@ int main() {
     } else {
         std::cout << "No" << std::endl;
 
-        std::sort(result.value().begin(), result.value().end());
-
         PrintSeparationOfWordIntoTextPrefixes(might_consist_of_text_prefixes_word, result.value());
     }
 
