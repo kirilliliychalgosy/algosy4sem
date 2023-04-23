@@ -38,23 +38,27 @@ std::vector<uint64_t> GetSubsqrtsAndPaired(uint64_t value) {
 
     uint64_t subsqrts_and_paired_quantity = GetSubsqrtsAndPairedQuantity(value);
     std::vector<uint64_t> subsqrts_and_paired(subsqrts_and_paired_quantity);
-    subsqrts_and_paired[0] = 1;
+    auto subsqrts_and_paired_begin = subsqrts_and_paired.begin();
+    auto subsqrts_and_paired_end = subsqrts_and_paired.end();
+    *subsqrts_and_paired_begin = 1;
 
     if (subsqrts_and_paired_quantity != 1) {
-        subsqrts_and_paired[subsqrts_and_paired_quantity - 1] = value;
-        uint64_t subsqrt_index = 1;
+        *(subsqrts_and_paired_end - 1) = value;
+        auto subsqrts_and_paired_iterator = subsqrts_and_paired_begin + 1;
         uint64_t subsqrt = 2;
         for (subsqrt = 2; subsqrt * subsqrt <= value; ++subsqrt) {
-            subsqrts_and_paired[subsqrt_index] = subsqrt;
-            subsqrts_and_paired[subsqrts_and_paired_quantity - subsqrt_index - 1] = value / subsqrt;
+            *subsqrts_and_paired_iterator = subsqrt;
+            *(subsqrts_and_paired_begin + static_cast<std::vector<uint64_t>::difference_type>(
+                                              subsqrts_and_paired_end - subsqrts_and_paired_iterator - 1)) =
+                value / subsqrt;
 
-            ++subsqrt_index;
+            ++subsqrts_and_paired_iterator;
         }
 
         subsqrts_and_paired.push_back(subsqrt - 1);  // trunc(sqrt(value)) is the last element
     }
 
-    return std::move(subsqrts_and_paired);
+    return subsqrts_and_paired;
 }
 
 /// \brief Gets index of value contained in vector that was formed by function get_subsqrts_and_paired
@@ -72,33 +76,52 @@ uint64_t GetCorrectIndex(const std::vector<uint64_t> &vector, uint64_t threshold
 /// \return quantity of prime numbers
 uint64_t GetPrimesQuantity(uint64_t ceil) {
     std::vector<uint64_t> subsqrts_and_paired = GetSubsqrtsAndPaired(ceil);
-    uint64_t size = subsqrts_and_paired.size() - 1;
-    uint64_t trunc_sqrt = subsqrts_and_paired[size];  // last element is trunc(sqrt(ceil))
+    auto subsqrts_and_paired_begin = subsqrts_and_paired.cbegin();
+    auto subsqrts_and_paired_end = subsqrts_and_paired.end() - 1;  // last element is trunc(sqrt(ceil))
+    auto subsqrts_and_paired_iterator = subsqrts_and_paired_begin;
+    uint64_t trunc_sqrt = *subsqrts_and_paired_end;
 
-    std::vector<uint64_t> dp(size);
-    for (uint64_t i = 0; i < size; ++i) {
-        dp[i] = subsqrts_and_paired[i];
+    std::vector<uint64_t> dp(subsqrts_and_paired_end - subsqrts_and_paired_begin);
+    auto dp_begin = dp.begin();
+    auto dp_end = dp.end();
+    auto dp_iterator = dp_begin;
+    while (dp_iterator != dp_end) {
+        *dp_iterator = *subsqrts_and_paired_iterator;
+
+        ++dp_iterator;
+        ++subsqrts_and_paired_iterator;
     }
 
     uint64_t values_used_in_sieving = 0;
     for (uint64_t subsqrt = 2; subsqrt * subsqrt <= ceil; ++subsqrt) {
-        if (dp[GetCorrectIndex(subsqrts_and_paired, trunc_sqrt, ceil, subsqrt - 1)] !=
-            dp[GetCorrectIndex(subsqrts_and_paired, trunc_sqrt, ceil, subsqrt)]) {
+
+        if (*(dp_begin + static_cast<std::vector<uint64_t>::difference_type>(
+                             GetCorrectIndex(subsqrts_and_paired, trunc_sqrt, ceil, subsqrt - 1))) !=
+            *(dp_begin + static_cast<std::vector<uint64_t>::difference_type>(
+                             GetCorrectIndex(subsqrts_and_paired, trunc_sqrt, ceil, subsqrt)))) {
             ++values_used_in_sieving;
 
-            for (uint64_t i = size; i > 0; --i) {
-                if (subsqrts_and_paired[i - 1] < subsqrt * subsqrt) {
+            subsqrts_and_paired_iterator = subsqrts_and_paired_end - 1;
+            dp_iterator = dp_end - 1;
+            while (subsqrts_and_paired_iterator != subsqrts_and_paired_begin) {
+                if (*subsqrts_and_paired_iterator < subsqrt * subsqrt) {
                     break;
                 }
 
-                dp[i - 1] -=
-                    dp[GetCorrectIndex(subsqrts_and_paired, trunc_sqrt, ceil, subsqrts_and_paired[i - 1] / subsqrt)] -
-                    values_used_in_sieving;
+                *dp_iterator -= *(dp.begin() + static_cast<std::vector<uint64_t>::difference_type>(
+                                                   GetCorrectIndex(subsqrts_and_paired, trunc_sqrt, ceil,
+                                                                   *subsqrts_and_paired_iterator / subsqrt))) -
+                                values_used_in_sieving;
+
+                --subsqrts_and_paired_iterator;
+                --dp_iterator;
             }
         }
     }
 
-    return dp[GetCorrectIndex(subsqrts_and_paired, trunc_sqrt, ceil, ceil)] - 1;
+    return *(dp_begin + static_cast<std::vector<uint64_t>::difference_type>(
+                            GetCorrectIndex(subsqrts_and_paired, trunc_sqrt, ceil, ceil))) -
+           1;
 }
 
 int main() {
