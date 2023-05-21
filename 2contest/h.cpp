@@ -6,6 +6,27 @@
 
 #define _USE_MATH_DEFINES  // for number pi
 
+struct FFTButterflyTransformationInPlaceContext {
+    FFTButterflyTransformationInPlaceContext()
+        : fft_elem_with_plus_ptr(nullptr)
+        , fft_elem_with_minus_ptr(nullptr)
+        , fft_elem_update_until_ptr(nullptr)
+        , fft_root_from_1_ptr(nullptr) {
+    }
+
+    void ToNextData() {
+        ++fft_elem_with_plus_ptr;
+        ++fft_elem_with_minus_ptr;
+        ++fft_root_from_1_ptr;
+    }
+
+    //-----------------------------------Variables-------------------------------------
+    std::complex<double> *fft_elem_with_plus_ptr;
+    std::complex<double> *fft_elem_with_minus_ptr;
+    std::complex<double> *fft_elem_update_until_ptr;
+    std::complex<double> *fft_root_from_1_ptr;
+};
+
 /// \brief FFT special: reorders coefficients of polynomial in certain way
 /// \param size - quantity of coefficients of polynomial
 /// \param size_log - binary logarithm of size
@@ -68,19 +89,20 @@ void DoFft(std::complex<double> *coefs, int64_t size, bool is_invert, const std:
 
         for (int64_t i = 0; i < size; i += length)  // optimization hell
         {
-            std::complex<double> *fft_elem_with_plus_ptr = coefs + i;
-            std::complex<double> *fft_elem_with_minus_ptr = coefs + i + halved_length;
-            std::complex<double> *fft_elem_update_until_ptr = coefs + i + halved_length;
-            std::complex<double> *fft_root_from_1_ptr = complex_roots_from_1;
-            while (fft_elem_with_plus_ptr < fft_elem_update_until_ptr) {
-                std::complex<double> fft_result_part_with_root_multiplied =
-                    *fft_elem_with_minus_ptr * *fft_root_from_1_ptr;
-                *fft_elem_with_minus_ptr = *fft_elem_with_plus_ptr - fft_result_part_with_root_multiplied;
-                *fft_elem_with_plus_ptr += fft_result_part_with_root_multiplied;
+            FFTButterflyTransformationInPlaceContext context;
+            context.fft_elem_with_plus_ptr = coefs + i;
+            context.fft_elem_with_minus_ptr = coefs + i + halved_length;
+            context.fft_elem_update_until_ptr = coefs + i + halved_length;
+            context.fft_root_from_1_ptr = complex_roots_from_1;
 
-                ++fft_elem_with_plus_ptr;
-                ++fft_elem_with_minus_ptr;
-                ++fft_root_from_1_ptr;
+            while (context.fft_elem_with_plus_ptr < context.fft_elem_update_until_ptr) {
+                std::complex<double> fft_result_part_with_root_multiplied =
+                    *context.fft_elem_with_minus_ptr * *context.fft_root_from_1_ptr;
+                *context.fft_elem_with_minus_ptr =
+                    *context.fft_elem_with_plus_ptr - fft_result_part_with_root_multiplied;
+                *context.fft_elem_with_plus_ptr += fft_result_part_with_root_multiplied;
+
+                context.ToNextData();
             }
         }
 
@@ -106,7 +128,7 @@ std::vector<int64_t> PolynomialMultiplication(const std::vector<int64_t> &v1, co
         max_from_sizes = v2_size;
     }
     int64_t smallest_pow_of_two_greater_than_both_vectors_sizes = 1;
-    while (smallest_pow_of_two_greater_than_both_vectors_sizes < static_cast<int64_t> (max_from_sizes)) {
+    while (smallest_pow_of_two_greater_than_both_vectors_sizes < static_cast<int64_t>(max_from_sizes)) {
         smallest_pow_of_two_greater_than_both_vectors_sizes <<= 1;
     }
     smallest_pow_of_two_greater_than_both_vectors_sizes <<=
@@ -125,7 +147,7 @@ std::vector<int64_t> PolynomialMultiplication(const std::vector<int64_t> &v1, co
 
     std::vector<int64_t> bit_reverse =
         GetBitsReverse(smallest_pow_of_two_greater_than_both_vectors_sizes,
-                         static_cast<int64_t>(std::log2(smallest_pow_of_two_greater_than_both_vectors_sizes)));
+                       static_cast<int64_t>(std::log2(smallest_pow_of_two_greater_than_both_vectors_sizes)));
 
     DoFft(double_v1, smallest_pow_of_two_greater_than_both_vectors_sizes, false, bit_reverse);
     DoFft(double_v2, smallest_pow_of_two_greater_than_both_vectors_sizes, false, bit_reverse);
