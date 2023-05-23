@@ -6,18 +6,63 @@
 
 #define _USE_MATH_DEFINES  // for number pi
 
+/*! \struct FFTButterflyTransformationInPlaceContext
+    \brief Deals with in-place "butterfly transformation" calculations
+
+    \param fft_elem_with_plus_ptr    - pointer to elem that should be taken with plus  in transformation
+    \param fft_elem_with_minus_ptr   - pointer to elem that should be taken with minus in transformation
+    \param fft_elem_update_until_ptr - pointer to elem where current "butterfly transformation" will end
+    \param fft_root_from_1_ptr       - pointer to current complex root from 1
+
+    Recalculates coefficients of polynom in-place, saving time and memory
+*/
 struct FFTButterflyTransformationInPlaceContext {
-    FFTButterflyTransformationInPlaceContext()
+    explicit FFTButterflyTransformationInPlaceContext(int64_t polynom_size)
         : fft_elem_with_plus_ptr(nullptr)
         , fft_elem_with_minus_ptr(nullptr)
         , fft_elem_update_until_ptr(nullptr)
-        , fft_root_from_1_ptr(nullptr) {
+        , fft_root_from_1_ptr(nullptr)
+        , complex_roots_from_1(new std::complex<double>[polynom_size]) {
+
+        complex_roots_from_1[0] = {1, 0};
     }
 
-    void ToNextData() {
-        ++fft_elem_with_plus_ptr;
-        ++fft_elem_with_minus_ptr;
-        ++fft_root_from_1_ptr;
+    ~FFTButterflyTransformationInPlaceContext() {
+        delete[] complex_roots_from_1;
+    }
+
+    /// \brief Updates pointers to polynom coefficients
+    /// \param elem_with_plus_ptr    - pointer to elem that should be taken with plus  in transformation
+    /// \param elem_with_minus_ptr   - pointer to elem that should be taken with minus in transformation
+    /// \param elem_update_until_ptr - pointer to elem where current "butterfly transformation" will end
+    void Update(std::complex<double> *elem_with_plus_ptr, std::complex<double> *elem_with_minus_ptr,
+                std::complex<double> *elem_update_until_ptr) {
+        fft_elem_with_plus_ptr = elem_with_plus_ptr;
+        fft_elem_with_minus_ptr = elem_with_minus_ptr;
+        fft_elem_update_until_ptr = elem_update_until_ptr;
+        fft_root_from_1_ptr = complex_roots_from_1;
+    }
+
+    /// \brief Updates coefficients according to current "butterfly transformation" iteration
+    void Calculate() {
+        while (fft_elem_with_plus_ptr < fft_elem_update_until_ptr) {
+            std::complex<double> fft_result_part_with_root_multiplied = *fft_elem_with_minus_ptr * *fft_root_from_1_ptr;
+            *fft_elem_with_minus_ptr = *fft_elem_with_plus_ptr - fft_result_part_with_root_multiplied;
+            *fft_elem_with_plus_ptr += fft_result_part_with_root_multiplied;
+
+            ++fft_elem_with_plus_ptr;
+            ++fft_elem_with_minus_ptr;
+            ++fft_root_from_1_ptr;
+        }
+    }
+
+    /// \brief Calculates complex roots from 1
+    /// \param main_complex_root_from_1 - main complex root from 1
+    /// \param length - how much complex roots should be calculated
+    void UpdateComplexRootsFrom1(const std::complex<double> &main_complex_root_from_1, int64_t quantity) {
+        for (int64_t root_index = 1; root_index < quantity; ++root_index) {
+            complex_roots_from_1[root_index] = complex_roots_from_1[root_index - 1] * main_complex_root_from_1;
+        }
     }
 
     //-----------------------------------Variables-------------------------------------
@@ -25,6 +70,8 @@ struct FFTButterflyTransformationInPlaceContext {
     std::complex<double> *fft_elem_with_minus_ptr;
     std::complex<double> *fft_elem_update_until_ptr;
     std::complex<double> *fft_root_from_1_ptr;
+
+    std::complex<double> *complex_roots_from_1;
 };
 
 /// \brief FFT special: reorders coefficients of polynomial in certain way
@@ -72,6 +119,7 @@ void DoFft(std::complex<double> *coefs, int64_t size, bool is_invert, const std:
         }
     }
 
+    FFTButterflyTransformationInPlaceContext context(size);
     for (int64_t length = 2; length <= size; length <<= 1) {
         double angle = 2 * M_PI / static_cast<double>(length);
         if (is_invert) {
@@ -80,33 +128,11 @@ void DoFft(std::complex<double> *coefs, int64_t size, bool is_invert, const std:
 
         int64_t halved_length = length >> 1;
 
-        std::complex<double> complex_root_from_1(cos(angle), sin(angle));
-        auto complex_roots_from_1 = new std::complex<double>[size];
-        complex_roots_from_1[0] = {1, 0};
-        for (int64_t root_index = 1; root_index < halved_length; ++root_index) {
-            complex_roots_from_1[root_index] = complex_roots_from_1[root_index - 1] * complex_root_from_1;
+        context.UpdateComplexRootsFrom1({cos(angle), sin(angle)}, halved_length);
+        for (int64_t i = 0; i < size; i += length) {
+            context.Update(coefs + i, coefs + i + halved_length, coefs + i + halved_length);
+            context.Calculate();
         }
-
-        for (int64_t i = 0; i < size; i += length)  // optimization hell
-        {
-            FFTButterflyTransformationInPlaceContext context;
-            context.fft_elem_with_plus_ptr = coefs + i;
-            context.fft_elem_with_minus_ptr = coefs + i + halved_length;
-            context.fft_elem_update_until_ptr = coefs + i + halved_length;
-            context.fft_root_from_1_ptr = complex_roots_from_1;
-
-            while (context.fft_elem_with_plus_ptr < context.fft_elem_update_until_ptr) {
-                std::complex<double> fft_result_part_with_root_multiplied =
-                    *context.fft_elem_with_minus_ptr * *context.fft_root_from_1_ptr;
-                *context.fft_elem_with_minus_ptr =
-                    *context.fft_elem_with_plus_ptr - fft_result_part_with_root_multiplied;
-                *context.fft_elem_with_plus_ptr += fft_result_part_with_root_multiplied;
-
-                context.ToNextData();
-            }
-        }
-
-        delete[] complex_roots_from_1;
     }
 
     if (is_invert) {
