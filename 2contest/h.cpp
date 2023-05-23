@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <complex>
@@ -149,10 +150,7 @@ void DoFft(std::complex<double> *coefs, int64_t size, bool is_invert, const std:
 std::vector<int64_t> PolynomialMultiplication(const std::vector<int64_t> &v1, const std::vector<int64_t> &v2) {
     uint64_t v1_size = v1.size();
     uint64_t v2_size = v2.size();
-    uint64_t max_from_sizes = v1.size();
-    if (max_from_sizes < v2_size) {
-        max_from_sizes = v2_size;
-    }
+    uint64_t max_from_sizes = std::max(v1.size(), v2.size());
     int64_t smallest_pow_of_two_greater_than_both_vectors_sizes = 1;
     while (smallest_pow_of_two_greater_than_both_vectors_sizes < static_cast<int64_t>(max_from_sizes)) {
         smallest_pow_of_two_greater_than_both_vectors_sizes <<= 1;
