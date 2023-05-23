@@ -14,6 +14,7 @@
     \param fft_elem_with_minus_ptr   - pointer to elem that should be taken with minus in transformation
     \param fft_elem_update_until_ptr - pointer to elem where current "butterfly transformation" will end
     \param fft_root_from_1_ptr       - pointer to current complex root from 1
+    \param complex_roots_from_1      - array with calculated complex roots
 
     Recalculates coefficients of polynom in-place, saving time and memory
 */
